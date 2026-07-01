@@ -46,6 +46,14 @@ const SPAWN_MAX_LEVEL = 4;
 // 살짝 겹치며 바짝 쌓여서, 꼭지 때문에 벌어져 보이던 간격이 사라집니다.
 const COLLIDE_SCALE = 0.9;
 
+// 카드/OG 등 캔버스 텍스트에 쓰는 폰트 (Pretendard 우선)
+const FONT_STACK = "Pretendard, 'Apple SD Gothic Neo', 'Helvetica Neue', sans-serif";
+// 게임 시작 시 카드에 쓰는 굵기를 미리 로드해둠 (게임오버 때 폴백 안 나오게)
+if (document.fonts && document.fonts.load) {
+  document.fonts.load("800 40px Pretendard");
+  document.fonts.load("700 16px Pretendard");
+}
+
 /* ---------- 월드(고정 좌표계) ----------
    내부 해상도는 고정하고, 화면 크기에 맞춰 CSS 로 스케일합니다.
    덕분에 어떤 폰에서도 물리/난이도가 동일합니다. */
@@ -442,7 +450,7 @@ function drawResultCard() {
 
   // 타이틀
   g.fillStyle = "#ff5fa2";
-  g.font = "800 17px -apple-system, 'Noto Sans KR', sans-serif";
+  g.font = "800 17px " + FONT_STACK;
   g.fillText("🍉 말랑이 쇼타로 수박게임", BW / 2, 36);
 
   // 도달한 최대 캐릭터 (흰 원 배경 + 부드러운 그림자)
@@ -458,12 +466,12 @@ function drawResultCard() {
 
   // 점수
   g.fillStyle = "#ff3d7f";
-  g.font = "800 42px -apple-system, sans-serif";
+  g.font = "800 42px " + FONT_STACK;
   g.fillText(`${score}점`, BW / 2, 272);
 
   // 최고 도달 캐릭터명
   g.fillStyle = "#7a4a5c";
-  g.font = "700 16px -apple-system, 'Noto Sans KR', sans-serif";
+  g.font = "700 16px " + FONT_STACK;
   g.fillText(`최고 도달 · ${def.name}`, BW / 2, 302);
 }
 

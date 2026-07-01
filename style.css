@@ -15,7 +15,7 @@ html, body {
   height: 100%;
   overscroll-behavior: none;
   background: linear-gradient(180deg, #fff0f6 0%, var(--pink-bg) 100%);
-  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Helvetica Neue", -apple-system, BlinkMacSystemFont, sans-serif;
   color: var(--ink);
   user-select: none;
   -webkit-user-select: none;
