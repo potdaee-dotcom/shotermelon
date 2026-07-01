@@ -1,0 +1,9 @@
+.DS_Store
+node_modules/
+*.log
+.claude/
+
+# 얼굴 원본 사진 (게임엔 assets/faces/out/ 만 필요)
+assets/faces/*.jpeg
+assets/faces/*.JPG
+assets/faces/*.jpg

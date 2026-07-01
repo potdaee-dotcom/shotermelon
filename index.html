@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffe3ef" />
+  <title>말랑이 쇼타로 수박게임</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Matter.js 물리엔진 (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="score-box">
+        <span class="label">점수</span>
+        <span id="score">0</span>
+      </div>
+      <h1 id="title">말랑이 쇼타로 수박게임</h1>
+      <div class="score-box best">
+        <span class="label">최고</span>
+        <span id="best">0</span>
+      </div>
+    </header>
+
+    <div id="next-row">
+      <span class="next-label">다음</span>
+      <canvas id="next-canvas" width="56" height="56"></canvas>
+      <div id="evolution-hint">함께할 수 있어서 기뻐요 으 말랑이 잘 부탁드립니다</div>
+    </div>
+
+    <div id="stage-wrap">
+      <canvas id="game-canvas"></canvas>
+
+      <!-- 게임오버 / 공유 카드 오버레이 -->
+      <div id="overlay" class="hidden">
+        <canvas id="confetti-canvas"></canvas>
+        <div id="result-card">
+          <canvas id="card-canvas" width="320" height="360"></canvas>
+          <div class="card-actions">
+            <button id="btn-retry">다시하기</button>
+            <button id="btn-share">𝕏 에 공유</button>
+          </div>
+          <div id="share-msg"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
