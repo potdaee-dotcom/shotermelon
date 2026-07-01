@@ -44,7 +44,7 @@ const SPAWN_MAX_LEVEL = 4;
 
 // 충돌(물리) 반지름 = 시각 반지름 × 이 배율. 1보다 작게 잡으면 과일들이
 // 살짝 겹치며 바짝 쌓여서, 꼭지 때문에 벌어져 보이던 간격이 사라집니다.
-const COLLIDE_SCALE = 0.88;
+const COLLIDE_SCALE = 0.9;
 
 /* ---------- 월드(고정 좌표계) ----------
    내부 해상도는 고정하고, 화면 크기에 맞춰 CSS 로 스케일합니다.
@@ -524,35 +524,40 @@ const SHARE_INTROS = [
   "제예요~",
   "쟌~!",
 ];
+const GAME_URL = "https://shotermelon.pages.dev";
 function buildShareText() {
   const intro = SHARE_INTROS[Math.floor(Math.random() * SHARE_INTROS.length)];
-  return `${intro} 말랑이 쇼타로 수박게임에서 ${score}점 달성!\n🍉 최고 도달: ${LEVELS[maxLevelReached].name}\n#쇼타로 #Shotaro`;
+  return `${intro} 말랑이 쇼타로 수박게임에서 ${score}점 달성!\n🍉 최고 도달: ${LEVELS[maxLevelReached].name}\n#쇼타로 #Shotaro\n${GAME_URL}`;
 }
-async function shareToX() {
+// 캔버스를 "동기적으로" File 로 변환 — 클릭 제스처를 유지하기 위함(핵심)
+function cardToFile() {
+  const b64 = cardCanvas.toDataURL("image/png").split(",")[1];
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new File([arr], "mallang_shotaro.png", { type: "image/png" });
+}
+function openXIntent(text) {
+  window.open("https://twitter.com/intent/tweet?text=" + encodeURIComponent(text), "_blank", "noopener");
+}
+// 클릭 핸들러는 동기로 유지해야 navigator.share / window.open 이 제스처 안에서 동작함
+function shareToX() {
   shareMsg.textContent = "";
-  const blob = await new Promise(r => cardCanvas.toBlob(r, "image/png"));
-  const file = new File([blob], "mallang_shotaro.png", { type: "image/png" });
   const text = buildShareText();
-  // 1) 네이티브 공유(모바일 등): 이미지가 게시글에 자동 첨부됨
+  const file = cardToFile();
+  // 1) 네이티브 공유(모바일/https): 이미지가 게시글에 자동 첨부됨
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], text });
-      return;
-    } catch (e) {
-      if (e && e.name === "AbortError") return; // 사용자가 취소
-    }
+    navigator.share({ files: [file], text }).catch((e) => {
+      if (e && e.name === "AbortError") return;      // 사용자가 취소
+      openXIntent(text);                              // 공유 실패 시 작성창이라도
+    });
+    return;
   }
-  // 2) 폴백(데스크톱 등): 이미지 클립보드 복사 후 X 작성창 열기
-  try {
-    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-    shareMsg.textContent = "이미지를 복사했어요! X 창이 열리면 ⌘V로 붙여넣어 주세요.";
-  } catch (_) {
-    const a = document.createElement("a");
-    a.href = cardCanvas.toDataURL("image/png");
-    a.download = "mallang_shotaro.png"; a.click();
-    shareMsg.textContent = "이미지를 저장했어요. X 글에 첨부해 주세요.";
-  }
-  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank");
+  // 2) 폴백(데스크톱 등): 제스처 안에서 X 작성창을 먼저 열고, 이미지 복사는 best-effort
+  openXIntent(text);
+  navigator.clipboard.write([new ClipboardItem({ "image/png": file })])
+    .then(() => { shareMsg.textContent = "이미지도 복사했어요! X 글에서 ⌘V(붙여넣기) 하세요."; })
+    .catch(() => { shareMsg.textContent = "X 작성창에 글이 채워졌어요. 이미지는 위 카드를 캡처해 첨부해 주세요."; });
 }
 document.getElementById("btn-share").addEventListener("click", shareToX);
 document.getElementById("btn-retry").addEventListener("click", restart);
