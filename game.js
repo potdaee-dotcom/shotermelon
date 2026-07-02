@@ -67,17 +67,49 @@ const SOUND_FILES = {
 };
 const sounds = {};
 for (const k in SOUND_FILES) { const a = new Audio(SOUND_FILES[k]); a.preload = "auto"; sounds[k] = a; }
-// 합성 결과 레벨(index) -> 효과음. clap=수박(10), wait=멜론(9), 나머지는 섞어서.
+// 합성 결과 레벨(index) -> 효과음. (사용자 지정 매핑)
+// index n = "n+1단계" 로 합쳐질 때. clap=수박(11단계), wait=멜론(10단계).
 const MERGE_SOUND = {
-  1: "kkakka", 2: "whatsthis", 3: "hajima", 4: "kkakka", 5: "topokki",
-  6: "whatsthis", 7: "laugh", 8: "hajima", 9: "wait", 10: "clap",
+  1: "whatsthis",  // 2단계
+  2: "kkakka",     // 3단계
+  3: "hajima",     // 4단계
+  4: "whatsthis1", // 5단계
+  5: "laugh",      // 6단계
+  6: "whatsthis",  // 7단계
+  7: "hajima",     // 8단계
+  8: "topokki",    // 9단계
+  9: "wait",       // 10단계
+  10: "clap",      // 11단계
 };
 let soundMuted = false;
 let audioUnlocked = false;
-// 모바일: 첫 사용자 제스처에서 모든 오디오를 잠깐 재생/정지해 잠금 해제
+let audioCtx = null;
+function getCtx() {
+  if (!audioCtx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) audioCtx = new AC(); }
+  return audioCtx;
+}
+// 과일 떨어뜨릴 때 '뾱' 팝음 (Web Audio 로 즉석 합성 — 파일 불필요, 매번 살짝 달라 덜 반복적)
+function playPop() {
+  if (soundMuted) return;
+  const ctx = getCtx(); if (!ctx) return;
+  const t = ctx.currentTime;
+  const f0 = 620 + Math.random() * 140;   // 시작 음정 살짝 랜덤
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(f0, t);
+  osc.frequency.exponentialRampToValueAtTime(170, t + 0.09);
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(0.32, t + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(t); osc.stop(t + 0.18);
+}
+// 모바일: 첫 사용자 제스처에서 오디오 잠금 해제
 function unlockAudio() {
   if (audioUnlocked) return;
   audioUnlocked = true;
+  const ctx = getCtx(); if (ctx && ctx.state === "suspended") ctx.resume();
   for (const k in sounds) {
     const a = sounds[k];
     a.muted = true;
@@ -85,11 +117,6 @@ function unlockAudio() {
     if (p) p.then(() => { a.pause(); a.currentTime = 0; a.muted = false; }).catch(() => { a.muted = false; });
     else a.muted = false;
   }
-}
-function playDrop() {
-  if (soundMuted) return;
-  const a = sounds.whatsthis1; if (!a) return;
-  try { a.currentTime = 0; const p = a.play(); if (p) p.catch(() => {}); } catch (_) {}
 }
 // 합성 효과음은 겹치지 않게 큐로 하나씩 순차 재생
 const mergeQueue = [];
@@ -289,7 +316,7 @@ function dropCurrent() {
   const x = clamp(dropX, WALL + r, WORLD_W - WALL - r);
   const body = makeMallang(x, DROP_Y, currentLevel);
   World.add(world, body);
-  playDrop();
+  playPop();
   setupNext();
   setTimeout(() => { canDrop = true; }, 480); // 쿨다운
 }
