@@ -118,35 +118,30 @@ function unlockAudio() {
     else a.muted = false;
   }
 }
-// 합성 효과음은 겹치지 않게 큐로 하나씩 순차 재생
-const mergeQueue = [];
-let mergePlaying = false;
-function enqueueMergeSound(name) {
-  if (!name || !sounds[name]) return;
-  mergeQueue.push(name);
-  if (!mergePlaying) playNextMerge();
-}
-function playNextMerge() {
-  if (mergeQueue.length === 0) { mergePlaying = false; return; }
-  mergePlaying = true;
-  const a = sounds[mergeQueue.shift()];
-  if (soundMuted || !a) { setTimeout(playNextMerge, 0); return; }
-  let advanced = false;
-  const next = () => { if (advanced) return; advanced = true; a.onended = null; playNextMerge(); };
-  a.onended = next;
+// 합성 효과음: 재생 중이면 그 사이에 트리거된 것들은 "쌓지 않고 무시".
+// 끝난(잠금 해제) 뒤에 새로 트리거되는 효과음만 재생 → 빠른 템포에서 밀림 없음.
+let mergeBusy = false;
+function playMergeSound(name) {
+  if (soundMuted || mergeBusy || !name) return;
+  const a = sounds[name];
+  if (!a) return;
+  mergeBusy = true;
+  let done = false;
+  const finish = () => { if (done) return; done = true; a.onended = null; mergeBusy = false; };
+  a.onended = finish;
   try {
     a.currentTime = 0;
     const p = a.play();
-    if (p) p.catch(() => setTimeout(next, 0));
-    const ms = ((isFinite(a.duration) && a.duration > 0) ? a.duration : 3) * 1000 + 250;
-    setTimeout(next, ms); // 안전장치: onended 안 와도 다음으로
-  } catch (_) { setTimeout(next, 0); }
+    if (p) p.catch(() => finish());
+    const ms = ((isFinite(a.duration) && a.duration > 0) ? a.duration : 3) * 1000 + 120;
+    setTimeout(finish, ms); // 안전장치: onended 안 와도 잠금 해제
+  } catch (_) { finish(); }
 }
 function setMuted(m) {
   soundMuted = m;
   if (m) {
     for (const k in sounds) { try { sounds[k].pause(); sounds[k].currentTime = 0; } catch (_) {} }
-    mergeQueue.length = 0; mergePlaying = false;
+    mergeBusy = false;
   }
 }
 const muteBtn = document.getElementById("mute-btn");
@@ -271,7 +266,7 @@ function onCollision(e) {
 
     addScore(SCORE_TABLE[newLevel] || newLevel);
     if (newLevel > maxLevelReached) maxLevelReached = newLevel;
-    enqueueMergeSound(MERGE_SOUND[newLevel]); // 합성 효과음(큐로 순차)
+    playMergeSound(MERGE_SOUND[newLevel]); // 합성 효과음(재생 중이면 무시)
   }
 }
 
