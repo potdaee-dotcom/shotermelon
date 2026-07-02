@@ -487,70 +487,14 @@ const SHARE_INTROS = [
 const GAME_URL = "https://shotermelon.pages.dev";
 function buildShareText() {
   const intro = SHARE_INTROS[Math.floor(Math.random() * SHARE_INTROS.length)];
-  return `${intro} 말랑이 쇼타로 수박게임에서 ${score}점 달성!\n🍉 최고 도달: ${LEVELS[maxLevelReached].name}\n#쇼타로 #Shotaro\n${GAME_URL}`;
-}
-// 공유 이미지 = 게임 보드(딤) 위에 결과 카드 팝업 을 얹은 합성 (게임 화면 엿보기)
-const SHARE_W = 540, SHARE_H = 810, SHARE_DIM = 0.35;
-function buildShareCanvas() {
-  const comp = document.createElement("canvas");
-  comp.width = SHARE_W; comp.height = SHARE_H;
-  const g = comp.getContext("2d");
-  g.fillStyle = "#ffe3ef"; g.fillRect(0, 0, SHARE_W, SHARE_H);
-  g.drawImage(canvas, 0, 0, SHARE_W, SHARE_H);            // 게임 보드
-  g.fillStyle = "rgba(90,59,73," + SHARE_DIM + ")";
-  g.fillRect(0, 0, SHARE_W, SHARE_H);                     // 딤
-  const cw = SHARE_W * 0.82, ch = cw * (360 / 320);
-  const cx = (SHARE_W - cw) / 2, cy = (SHARE_H - ch) / 2, rad = 26;
-  const cardRect = () => {
-    g.beginPath();
-    g.moveTo(cx + rad, cy);
-    g.arcTo(cx + cw, cy, cx + cw, cy + ch, rad);
-    g.arcTo(cx + cw, cy + ch, cx, cy + ch, rad);
-    g.arcTo(cx, cy + ch, cx, cy, rad);
-    g.arcTo(cx, cy, cx + cw, cy, rad);
-    g.closePath();
-  };
-  g.save(); g.shadowColor = "rgba(80,30,60,0.45)"; g.shadowBlur = 30; g.shadowOffsetY = 10;
-  cardRect(); g.fillStyle = "#fff"; g.fill(); g.restore();
-  g.save(); cardRect(); g.clip(); g.drawImage(cardCanvas, cx, cy, cw, ch); g.restore();
-  return comp;
-}
-// 위 합성 캔버스를 "동기적으로" File 로 변환 — 클릭 제스처를 유지하기 위함(핵심)
-function cardToFile() {
-  const b64 = buildShareCanvas().toDataURL("image/png").split(",")[1];
-  const bin = atob(b64);
-  const arr = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-  return new File([arr], "mallang_shotaro.png", { type: "image/png" });
+  return `${intro} 말랑이 쇼타로 수박게임에서 ${score}점 달성!\n🍉 최고 도달: ${LEVELS[maxLevelReached].name}\n${GAME_URL}`;
 }
 function openXIntent(text) {
   window.open("https://twitter.com/intent/tweet?text=" + encodeURIComponent(text), "_blank", "noopener");
 }
-// 이미지 자동첨부가 불가한 환경(인앱 브라우저/데스크톱): X 작성창(글)을 열고 이미지는 클립보드로
-function fallbackShare(text, file) {
-  openXIntent(text);
-  if (file && navigator.clipboard && window.ClipboardItem) {
-    navigator.clipboard.write([new ClipboardItem({ "image/png": file })])
-      .then(() => { shareMsg.textContent = "X 작성창에 글이 채워졌어요. 이미지는 복사됐으니 붙여넣기 하세요."; })
-      .catch(() => { shareMsg.textContent = "X 작성창에 글이 채워졌어요. 이미지는 결과 화면을 캡처해 첨부해 주세요."; });
-  } else {
-    shareMsg.textContent = "X 작성창에 글이 채워졌어요. 이미지는 결과 화면을 캡처해 첨부해 주세요.";
-  }
-}
-// 클릭 핸들러는 동기로 유지해야 navigator.share / window.open 이 제스처 안에서 동작함
+// X로 바로 이동: 결과 이미지 첨부 없이 글만 채우고, 링크의 OG 미리보기가 대표 이미지가 됨
 function shareToX() {
-  shareMsg.textContent = "";
-  const text = buildShareText();
-  let file = null;
-  try { file = cardToFile(); } catch (_) {}
-  // 1) 네이티브 공유(모바일 기본 브라우저 + https): 공유 시트 → X 선택 시 이미지+글 자동
-  if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-    navigator.share({ files: [file], text, title: "말랑이 쇼타로 수박게임" })
-      .catch((e) => { if (!e || e.name !== "AbortError") fallbackShare(text, file); });
-    return;
-  }
-  // 2) 그 외(카톡/인스타 등 인앱 브라우저, 데스크톱): 글 채운 X 작성창 + 이미지 클립보드
-  fallbackShare(text, file);
+  openXIntent(buildShareText());
 }
 document.getElementById("btn-share").addEventListener("click", shareToX);
 document.getElementById("btn-retry").addEventListener("click", restart);
