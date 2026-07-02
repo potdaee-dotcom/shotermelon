@@ -7,3 +7,10 @@ node_modules/
 assets/faces/*.jpeg
 assets/faces/*.JPG
 assets/faces/*.jpg
+
+# 효과음 소스 영상 (게임엔 추출된 assets/sounds/*.m4a 만 필요)
+assets/voices/
+
+# 오디오 추출용 npm 도구 (정적 배포엔 불필요, Cloudflare가 빌드로 오인 방지)
+package.json
+package-lock.json

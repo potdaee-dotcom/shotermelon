@@ -54,6 +54,84 @@ if (document.fonts && document.fonts.load) {
   document.fonts.load("700 16px Pretendard");
 }
 
+/* ---------- 효과음 ---------- */
+const SOUND_FILES = {
+  whatsthis1: "assets/sounds/whatsthis1.m4a", // 과일 떨어뜨릴 때(일괄)
+  clap:      "assets/sounds/clap.m4a",
+  wait:      "assets/sounds/wait.m4a",
+  laugh:     "assets/sounds/laugh.m4a",
+  hajima:    "assets/sounds/hajima.m4a",
+  kkakka:    "assets/sounds/kkakka.m4a",
+  topokki:   "assets/sounds/topokki.m4a",
+  whatsthis: "assets/sounds/whatsthis.m4a",
+};
+const sounds = {};
+for (const k in SOUND_FILES) { const a = new Audio(SOUND_FILES[k]); a.preload = "auto"; sounds[k] = a; }
+// 합성 결과 레벨(index) -> 효과음. clap=수박(10), wait=멜론(9), 나머지는 섞어서.
+const MERGE_SOUND = {
+  1: "kkakka", 2: "whatsthis", 3: "hajima", 4: "kkakka", 5: "topokki",
+  6: "whatsthis", 7: "laugh", 8: "hajima", 9: "wait", 10: "clap",
+};
+let soundMuted = false;
+let audioUnlocked = false;
+// 모바일: 첫 사용자 제스처에서 모든 오디오를 잠깐 재생/정지해 잠금 해제
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  for (const k in sounds) {
+    const a = sounds[k];
+    a.muted = true;
+    const p = a.play();
+    if (p) p.then(() => { a.pause(); a.currentTime = 0; a.muted = false; }).catch(() => { a.muted = false; });
+    else a.muted = false;
+  }
+}
+function playDrop() {
+  if (soundMuted) return;
+  const a = sounds.whatsthis1; if (!a) return;
+  try { a.currentTime = 0; const p = a.play(); if (p) p.catch(() => {}); } catch (_) {}
+}
+// 합성 효과음은 겹치지 않게 큐로 하나씩 순차 재생
+const mergeQueue = [];
+let mergePlaying = false;
+function enqueueMergeSound(name) {
+  if (!name || !sounds[name]) return;
+  mergeQueue.push(name);
+  if (!mergePlaying) playNextMerge();
+}
+function playNextMerge() {
+  if (mergeQueue.length === 0) { mergePlaying = false; return; }
+  mergePlaying = true;
+  const a = sounds[mergeQueue.shift()];
+  if (soundMuted || !a) { setTimeout(playNextMerge, 0); return; }
+  let advanced = false;
+  const next = () => { if (advanced) return; advanced = true; a.onended = null; playNextMerge(); };
+  a.onended = next;
+  try {
+    a.currentTime = 0;
+    const p = a.play();
+    if (p) p.catch(() => setTimeout(next, 0));
+    const ms = ((isFinite(a.duration) && a.duration > 0) ? a.duration : 3) * 1000 + 250;
+    setTimeout(next, ms); // 안전장치: onended 안 와도 다음으로
+  } catch (_) { setTimeout(next, 0); }
+}
+function setMuted(m) {
+  soundMuted = m;
+  if (m) {
+    for (const k in sounds) { try { sounds[k].pause(); sounds[k].currentTime = 0; } catch (_) {} }
+    mergeQueue.length = 0; mergePlaying = false;
+  }
+}
+const muteBtn = document.getElementById("mute-btn");
+if (muteBtn) {
+  muteBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    unlockAudio();
+    setMuted(!soundMuted);
+    muteBtn.textContent = soundMuted ? "🔇" : "🔊";
+  });
+}
+
 /* ---------- 월드(고정 좌표계) ----------
    내부 해상도는 고정하고, 화면 크기에 맞춰 CSS 로 스케일합니다.
    덕분에 어떤 폰에서도 물리/난이도가 동일합니다. */
@@ -166,6 +244,7 @@ function onCollision(e) {
 
     addScore(SCORE_TABLE[newLevel] || newLevel);
     if (newLevel > maxLevelReached) maxLevelReached = newLevel;
+    enqueueMergeSound(MERGE_SOUND[newLevel]); // 합성 효과음(큐로 순차)
   }
 }
 
@@ -210,6 +289,7 @@ function dropCurrent() {
   const x = clamp(dropX, WALL + r, WORLD_W - WALL - r);
   const body = makeMallang(x, DROP_Y, currentLevel);
   World.add(world, body);
+  playDrop();
   setupNext();
   setTimeout(() => { canDrop = true; }, 480); // 쿨다운
 }
@@ -233,6 +313,7 @@ function pointerToWorldX(clientX) {
 }
 let pointerActive = false;
 function onDown(e) {
+  unlockAudio();            // 첫 터치/클릭에서 모바일 오디오 잠금 해제
   if (gameOver) return;
   pointerActive = true;
   dropX = pointerToWorldX(getX(e));
