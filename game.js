@@ -526,24 +526,31 @@ function cardToFile() {
 function openXIntent(text) {
   window.open("https://twitter.com/intent/tweet?text=" + encodeURIComponent(text), "_blank", "noopener");
 }
+// 이미지 자동첨부가 불가한 환경(인앱 브라우저/데스크톱): X 작성창(글)을 열고 이미지는 클립보드로
+function fallbackShare(text, file) {
+  openXIntent(text);
+  if (file && navigator.clipboard && window.ClipboardItem) {
+    navigator.clipboard.write([new ClipboardItem({ "image/png": file })])
+      .then(() => { shareMsg.textContent = "X 작성창에 글이 채워졌어요. 이미지는 복사됐으니 붙여넣기 하세요."; })
+      .catch(() => { shareMsg.textContent = "X 작성창에 글이 채워졌어요. 이미지는 결과 화면을 캡처해 첨부해 주세요."; });
+  } else {
+    shareMsg.textContent = "X 작성창에 글이 채워졌어요. 이미지는 결과 화면을 캡처해 첨부해 주세요.";
+  }
+}
 // 클릭 핸들러는 동기로 유지해야 navigator.share / window.open 이 제스처 안에서 동작함
 function shareToX() {
   shareMsg.textContent = "";
   const text = buildShareText();
-  const file = cardToFile();
-  // 1) 네이티브 공유(모바일/https): 이미지가 게시글에 자동 첨부됨
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    navigator.share({ files: [file], text }).catch((e) => {
-      if (e && e.name === "AbortError") return;      // 사용자가 취소
-      openXIntent(text);                              // 공유 실패 시 작성창이라도
-    });
+  let file = null;
+  try { file = cardToFile(); } catch (_) {}
+  // 1) 네이티브 공유(모바일 기본 브라우저 + https): 공유 시트 → X 선택 시 이미지+글 자동
+  if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], text, title: "말랑이 쇼타로 수박게임" })
+      .catch((e) => { if (!e || e.name !== "AbortError") fallbackShare(text, file); });
     return;
   }
-  // 2) 폴백(데스크톱 등): 제스처 안에서 X 작성창을 먼저 열고, 이미지 복사는 best-effort
-  openXIntent(text);
-  navigator.clipboard.write([new ClipboardItem({ "image/png": file })])
-    .then(() => { shareMsg.textContent = "이미지도 복사했어요! X 글에서 ⌘V(붙여넣기) 하세요."; })
-    .catch(() => { shareMsg.textContent = "X 작성창에 글이 채워졌어요. 이미지는 위 카드를 캡처해 첨부해 주세요."; });
+  // 2) 그 외(카톡/인스타 등 인앱 브라우저, 데스크톱): 글 채운 X 작성창 + 이미지 클립보드
+  fallbackShare(text, file);
 }
 document.getElementById("btn-share").addEventListener("click", shareToX);
 document.getElementById("btn-retry").addEventListener("click", restart);
