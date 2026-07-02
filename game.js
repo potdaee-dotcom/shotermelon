@@ -247,7 +247,11 @@ function onUp(e) {
   dropX = pointerToWorldX(getX(e));
   dropCurrent();
 }
-function getX(e) { return e.touches ? e.touches[0].clientX : e.clientX; }
+function getX(e) {
+  // touchend 에는 e.touches 가 비어있으므로 changedTouches 를 우선 사용
+  const t = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]);
+  return t ? t.clientX : e.clientX;
+}
 
 canvas.addEventListener("touchstart", e => { e.preventDefault(); onDown(e); }, { passive: false });
 canvas.addEventListener("touchmove",  e => { e.preventDefault(); onMove(e); }, { passive: false });
@@ -305,68 +309,7 @@ function drawMallang(g, x, y, level, scale = 1) {
     return;
   }
 
-  // 몸통 (그라데이션)
-  const grad = g.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.2, x, y, r);
-  grad.addColorStop(0, "#ffffff");
-  grad.addColorStop(0.25, def.color);
-  grad.addColorStop(1, shade(def.color, -18));
-  g.beginPath();
-  g.arc(x, y, r, 0, Math.PI * 2);
-  g.fillStyle = grad;
-  g.fill();
-  g.lineWidth = Math.max(1.5, r * 0.05);
-  g.strokeStyle = shade(def.color, -28);
-  g.stroke();
-
-  // 볼터치
-  g.fillStyle = "rgba(255,120,160,0.45)";
-  g.beginPath(); g.arc(x - r * 0.45, y + r * 0.18, r * 0.16, 0, Math.PI * 2); g.fill();
-  g.beginPath(); g.arc(x + r * 0.45, y + r * 0.18, r * 0.16, 0, Math.PI * 2); g.fill();
-
-  // 눈
-  const eyeY = y - r * 0.05;
-  const eyeDx = r * 0.32;
-  const eyeR = Math.max(2, r * 0.12);
-  g.fillStyle = "#3a2530";
-  g.beginPath(); g.arc(x - eyeDx, eyeY, eyeR, 0, Math.PI * 2); g.fill();
-  g.beginPath(); g.arc(x + eyeDx, eyeY, eyeR, 0, Math.PI * 2); g.fill();
-  // 눈 하이라이트
-  g.fillStyle = "#fff";
-  g.beginPath(); g.arc(x - eyeDx + eyeR * 0.3, eyeY - eyeR * 0.3, eyeR * 0.35, 0, Math.PI * 2); g.fill();
-  g.beginPath(); g.arc(x + eyeDx + eyeR * 0.3, eyeY - eyeR * 0.3, eyeR * 0.35, 0, Math.PI * 2); g.fill();
-
-  // 입 (얼굴 종류별)
-  g.strokeStyle = "#3a2530";
-  g.lineWidth = Math.max(1.5, r * 0.05);
-  g.lineCap = "round";
-  const my = y + r * 0.28;
-  g.beginPath();
-  if (def.face === "love" || def.face === "king") {
-    g.arc(x, my - r * 0.05, r * 0.18, 0, Math.PI);
-  } else if (def.face === "happy" || def.face === "cool") {
-    g.arc(x, my - r * 0.08, r * 0.15, 0.1 * Math.PI, 0.9 * Math.PI);
-  } else {
-    g.moveTo(x - r * 0.1, my); g.lineTo(x + r * 0.1, my);
-  }
-  g.stroke();
-
-  // 왕관 (최종 쇼타로)
-  if (def.face === "king") {
-    g.fillStyle = "#ffd24d";
-    g.strokeStyle = "#e0a800";
-    g.lineWidth = r * 0.04;
-    const cw = r * 0.9, ch = r * 0.4, cx = x - cw / 2, cy = y - r * 0.95;
-    g.beginPath();
-    g.moveTo(cx, cy + ch);
-    g.lineTo(cx, cy);
-    g.lineTo(cx + cw * 0.25, cy + ch * 0.5);
-    g.lineTo(cx + cw * 0.5, cy - ch * 0.2);
-    g.lineTo(cx + cw * 0.75, cy + ch * 0.5);
-    g.lineTo(cx + cw, cy);
-    g.lineTo(cx + cw, cy + ch);
-    g.closePath();
-    g.fill(); g.stroke();
-  }
+  // 얼굴 이미지가 아직 로딩 전이면 아무것도 그리지 않음 (초기 폴백 이미지 숨김)
 }
 
 function render() {
@@ -415,12 +358,21 @@ function render() {
 }
 
 function drawNextPreview() {
-  nextCtx.clearRect(0, 0, 56, 56);
-  // 작게 미리보기 (실제 크기와 무관하게 박스에 맞춤)
+  const SIZE = 56;
+  // 레티나 대응: 백킹 해상도를 dpr 배로 (기존 56x56 은 저해상도라 깨져 보였음)
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  if (nextCanvas.width !== Math.round(SIZE * dpr)) {
+    nextCanvas.width = Math.round(SIZE * dpr);
+    nextCanvas.height = Math.round(SIZE * dpr);
+    nextCanvas.style.width = SIZE + "px";
+    nextCanvas.style.height = SIZE + "px";
+  }
+  nextCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  nextCtx.clearRect(0, 0, SIZE, SIZE);
   const tmpR = 22;
   const saved = LEVELS[nextLevel].r;
   // drawMallang 은 def.r 을 쓰므로 scale 로 보정
-  drawMallang(nextCtx, 28, 28, nextLevel, tmpR / saved);
+  drawMallang(nextCtx, SIZE / 2, SIZE / 2, nextLevel, tmpR / saved);
 }
 
 /* ---------- 결과 카드(공유용, 고해상도) ---------- */
