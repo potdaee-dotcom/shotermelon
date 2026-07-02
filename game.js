@@ -105,17 +105,20 @@ function playPop() {
   osc.connect(gain); gain.connect(ctx.destination);
   osc.start(t); osc.stop(t + 0.18);
 }
-// 모바일: 첫 사용자 제스처에서 오디오 잠금 해제
+// 모바일: 첫 사용자 제스처에서 오디오 잠금 해제 (반드시 무음으로 — 소리가 새면 안 됨)
 function unlockAudio() {
   if (audioUnlocked) return;
   audioUnlocked = true;
   const ctx = getCtx(); if (ctx && ctx.state === "suspended") ctx.resume();
   for (const k in sounds) {
     const a = sounds[k];
-    a.muted = true;
-    const p = a.play();
-    if (p) p.then(() => { a.pause(); a.currentTime = 0; a.muted = false; }).catch(() => { a.muted = false; });
-    else a.muted = false;
+    a.muted = true;                 // iOS 는 muted 를 존중 → 프라이밍 중 무음
+    let p;
+    try { p = a.play(); } catch (_) { a.muted = false; continue; }
+    // 재생이 시작되면 즉시 정지하고 음소거 해제. 반환값 없는(구형 WebView) 경우엔 동기적으로 정지.
+    const stop = () => { try { a.pause(); a.currentTime = 0; } catch (_) {} a.muted = false; };
+    if (p && typeof p.then === "function") p.then(stop, stop);
+    else stop();
   }
 }
 // 합성 효과음: 재생 중이면 그 사이에 트리거된 것들은 "쌓지 않고 무시".
